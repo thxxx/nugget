@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Stack
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS v4
+- Zustand
+- Supabase (`@supabase/supabase-js`)
+- Kakao Maps JS + Kakao Local Search API
 
-## Getting Started
+## Setup
 
-First, run the development server:
-
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Fill in environment values in `.env.local`:
+```bash
+# Public
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your-kakao-javascript-key
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Server only
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+KAKAO_REST_API_KEY=your-kakao-rest-api-key
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
 
-## Learn More
+3. Apply DB schema in Supabase SQL editor:
+- `agents/supabase-schema.sql`
+- 이미 초기 스키마를 적용했다면 추가 마이그레이션도 실행:
+  - `agents/supabase-migration-add-visit-tags.sql`
 
-To learn more about Next.js, take a look at the following resources:
+4. Run dev server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open `http://localhost:3000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Main Routes
+- `/`: 닉네임 로그인/가입
+- `/map`: 지도 + 장소 검색 + 저장/메모
+- `/follows`: 팔로잉/팔로워/유저검색
+- `/saves`: 내 저장 목록 (정렬/방문상태 필터)
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Notes
+- `.env.local` is ignored by git.
+- `SUPABASE_SERVICE_ROLE_KEY`, `KAKAO_REST_API_KEY`는 서버에서만 사용됩니다.
