@@ -43,35 +43,46 @@ export default function FollowsPage() {
     }
   }, [hydrated, router, sessionUser]);
 
-  const loadFollowList = useCallback(async (type: "following" | "followers") => {
-    if (!sessionUser) {
-      return;
-    }
+  const loadFollowList = useCallback(
+    async (type: "following" | "followers") => {
+      if (!sessionUser) {
+        return;
+      }
 
-    const response = await fetch(`/api/follows?viewerId=${sessionUser.id}&type=${type}`, {
-      method: "GET",
-      cache: "no-store",
-    });
+      const response = await fetch(
+        `/api/follows?viewerId=${sessionUser.id}&type=${type}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
 
-    const payload = (await response.json()) as {
-      message?: string;
-      users?: FollowUser[];
-    };
+      const payload = (await response.json()) as {
+        message?: string;
+        users?: FollowUser[];
+      };
 
-    if (!response.ok) {
-      throw new Error(payload.message ?? "팔로우 목록을 불러오지 못했습니다.");
-    }
+      if (!response.ok) {
+        throw new Error(
+          payload.message ?? "팔로우 목록을 불러오지 못했습니다.",
+        );
+      }
 
-    if (type === "following") {
-      setFollowing(payload.users ?? []);
-      return;
-    }
+      if (type === "following") {
+        setFollowing(payload.users ?? []);
+        return;
+      }
 
-    setFollowers(payload.users ?? []);
-  }, [sessionUser, setFollowers, setFollowing]);
+      setFollowers(payload.users ?? []);
+    },
+    [sessionUser, setFollowers, setFollowing],
+  );
 
   const refreshAllLists = useCallback(async () => {
-    await Promise.all([loadFollowList("following"), loadFollowList("followers")]);
+    await Promise.all([
+      loadFollowList("following"),
+      loadFollowList("followers"),
+    ]);
   }, [loadFollowList]);
 
   useEffect(() => {
@@ -82,16 +93,7 @@ export default function FollowsPage() {
     void refreshAllLists();
   }, [refreshAllLists, sessionUser]);
 
-  const handleSearchSubmit = async (event?: FormEvent<HTMLFormElement>) => {
-    event?.preventDefault();
-
-    const query = searchQuery.trim();
-    if (!query) {
-      setSearchResults([]);
-      setSearchError("");
-      return;
-    }
-
+  const fetchUserSearch = useCallback(async (query: string) => {
     if (!sessionUser) {
       return;
     }
@@ -100,8 +102,17 @@ export default function FollowsPage() {
     setSearchError("");
 
     try {
+      const trimmedQuery = query.trim();
+      const endpoint = new URLSearchParams({
+        viewerId: sessionUser.id,
+      });
+
+      if (trimmedQuery) {
+        endpoint.set("q", trimmedQuery);
+      }
+
       const response = await fetch(
-        `/api/users/search?q=${encodeURIComponent(query)}&viewerId=${sessionUser.id}`,
+        `/api/users/search?${endpoint.toString()}`,
         {
           method: "GET",
           cache: "no-store",
@@ -124,7 +135,24 @@ export default function FollowsPage() {
     } finally {
       setIsLoading(false);
     }
+  }, [sessionUser, setSearchResults]);
+
+  const handleSearchSubmit = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    await fetchUserSearch(searchQuery);
   };
+
+  useEffect(() => {
+    if (!sessionUser || activeTab !== "search") {
+      return;
+    }
+
+    if (searchQuery.trim()) {
+      return;
+    }
+
+    void fetchUserSearch("");
+  }, [activeTab, fetchUserSearch, searchQuery, sessionUser]);
 
   const applyFollowAction = async (user: FollowUser, shouldFollow: boolean) => {
     if (!sessionUser) {
@@ -155,8 +183,8 @@ export default function FollowsPage() {
 
     await refreshAllLists();
 
-    if (searchQuery.trim()) {
-      await handleSearchSubmit();
+    if (activeTab === "search") {
+      await fetchUserSearch(searchQuery);
     }
   };
 
@@ -166,7 +194,9 @@ export default function FollowsPage() {
       setSearchError("");
     } catch (error) {
       setSearchError(
-        error instanceof Error ? error.message : "팔로우 상태 변경에 실패했습니다.",
+        error instanceof Error
+          ? error.message
+          : "팔로우 상태 변경에 실패했습니다.",
       );
     }
   };
@@ -193,8 +223,12 @@ export default function FollowsPage() {
     <AppShell>
       <main className="min-h-dvh px-4 pt-4">
         <header className="rounded-[28px] border border-black/5 bg-white/90 p-5 shadow-[0_12px_35px_rgba(17,17,17,0.05)] backdrop-blur">
-          <p className="text-xs font-medium text-[var(--nugget-muted)]">@{sessionUser.nickname}</p>
-          <h1 className="mt-1 text-xl font-bold text-[var(--nugget-text)]">Follows</h1>
+          <p className="text-xs font-medium text-[var(--nugget-muted)]">
+            @{sessionUser.nickname}
+          </p>
+          <h1 className="mt-1 text-xl font-bold text-[var(--nugget-text)]">
+            Follows
+          </h1>
           <p className="mt-2 text-sm text-[var(--nugget-muted)]">
             팔로잉 {stats.following} · 팔로워 {stats.followers}
           </p>
@@ -262,17 +296,26 @@ export default function FollowsPage() {
             </TabsContent>
 
             <TabsContent value="search">
-              <form className="mt-3 flex gap-2" onSubmit={handleSearchSubmit}>
+              <form
+                className="mt-3 flex gap-2 items-center relative"
+                onSubmit={handleSearchSubmit}
+              >
                 <Input
                   value={searchQuery}
                   placeholder="닉네임 검색"
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
-                <Button type="submit" disabled={isLoading}>
+                <Button
+                  className="w-16 h-9 rounded-xl absolute right-1"
+                  type="submit"
+                  disabled={isLoading}
+                >
                   {isLoading ? "검색중" : "검색"}
                 </Button>
               </form>
-              {searchError ? <p className="mt-2 text-xs text-red-600">{searchError}</p> : null}
+              {searchError ? (
+                <p className="mt-2 text-xs text-red-600">{searchError}</p>
+              ) : null}
 
               <div className="mt-3 space-y-2">
                 {searchResults.length ? (
@@ -297,8 +340,8 @@ export default function FollowsPage() {
                   />
                 ) : (
                   <EmptyState
-                    title="유저를 검색해 보세요"
-                    description="닉네임 일부만 입력해도 찾을 수 있어요."
+                    title="추천 유저가 없습니다"
+                    description="아직 공개 저장이 충분하지 않아요."
                   />
                 )}
               </div>

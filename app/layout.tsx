@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "nugget",
-  description: "지도 기반 맛집 저장 및 팔로우 서비스",
+  description: "지인 기반 맛집 저장 및 팔로우 서비스",
 };
 
 export const viewport: Viewport = {

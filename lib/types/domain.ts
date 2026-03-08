@@ -91,3 +91,13 @@ export type SaveListItem = {
     longitude: number;
   };
 };
+
+export type SaveLikeActivityItem = {
+  id: string;
+  saveId: number;
+  placeId: number;
+  placeName: string;
+  reactorUserId: string;
+  reactorNickname: string;
+  createdAt: string;
+};

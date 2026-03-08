@@ -2,7 +2,6 @@
 
 import { Search, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type TopSearchBarProps = {
@@ -48,13 +47,13 @@ export function TopSearchBar({
             <X className="h-4 w-4" />
           </button>
         ) : null}
-        <Button
-          className="h-9 w-16 rounded-full text-xs font-medium"
+        <button
+          className="h-9 min-w-12 px-2 rounded-full text-sm font-medium bg-black text-white"
           onClick={onSubmit}
           disabled={loading}
         >
           {loading ? "검색 중" : "검색"}
-        </Button>
+        </button>
       </div>
     </div>
   );

@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Coffee, LayoutGrid, Star, UtensilsCrossed } from "lucide-react";
+import {
+  Coffee,
+  LayoutGrid,
+  LocateFixed,
+  Star,
+  UtensilsCrossed,
+} from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -127,10 +133,18 @@ export default function MapPage() {
   const setFeedPlaces = useMapStore((state) => state.setFeedPlaces);
   const setSelectedPlace = useMapStore((state) => state.setSelectedPlace);
 
-  const followVisibilityHydrated = useMapFollowVisibilityStore((state) => state.hydrated);
-  const visibilityByUserId = useMapFollowVisibilityStore((state) => state.visibilityByUserId);
-  const setUserVisibility = useMapFollowVisibilityStore((state) => state.setUserVisibility);
-  const syncFollowingUsers = useMapFollowVisibilityStore((state) => state.syncFollowingUsers);
+  const followVisibilityHydrated = useMapFollowVisibilityStore(
+    (state) => state.hydrated,
+  );
+  const visibilityByUserId = useMapFollowVisibilityStore(
+    (state) => state.visibilityByUserId,
+  );
+  const setUserVisibility = useMapFollowVisibilityStore(
+    (state) => state.setUserVisibility,
+  );
+  const syncFollowingUsers = useMapFollowVisibilityStore(
+    (state) => state.syncFollowingUsers,
+  );
 
   const [isMapReady, setIsMapReady] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -140,11 +154,13 @@ export default function MapPage() {
   const [memo, setMemo] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [rating, setRating] = useState<1 | 2 | 3>(3);
-  const [searchTypeFilter, setSearchTypeFilter] = useState<SearchTypeFilter>("all");
+  const [searchTypeFilter, setSearchTypeFilter] =
+    useState<SearchTypeFilter>("all");
 
   const [isSheetOpen, setSheetOpen] = useState(false);
   const [isEditMode, setEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [reactingSaveId, setReactingSaveId] = useState<number | null>(null);
   const [isUnsaveConfirmOpen, setUnsaveConfirmOpen] = useState(false);
   const [isFollowPanelOpen, setFollowPanelOpen] = useState(false);
@@ -191,7 +207,9 @@ export default function MapPage() {
         return;
       }
 
-      const mine = place.owners.find((owner) => owner.userId === sessionUser.id);
+      const mine = place.owners.find(
+        (owner) => owner.userId === sessionUser.id,
+      );
 
       setSelectedPlace({
         externalPlaceKey: place.externalPlaceKey,
@@ -236,7 +254,9 @@ export default function MapPage() {
       clearMarkerRefs();
 
       for (const place of places) {
-        const myOwner = place.owners.find((owner) => owner.userId === sessionUser.id);
+        const myOwner = place.owners.find(
+          (owner) => owner.userId === sessionUser.id,
+        );
         const representativeOwner = place.owners[0];
         const isMine = Boolean(myOwner);
 
@@ -244,7 +264,7 @@ export default function MapPage() {
           ? "#f97316"
           : hashToColor(representativeOwner?.userId ?? String(place.placeId));
 
-        const symbol = isMine ? (myOwner?.visitStatus === "visited" ? "✓" : "•") : "";
+        const symbol = isMine ? "•" : "";
         const image = createMarkerImage(maps, markerColor, symbol);
 
         const marker = new maps.Marker({
@@ -293,10 +313,13 @@ export default function MapPage() {
       return;
     }
 
-    const response = await fetch(`/api/follows?viewerId=${sessionUser.id}&type=following`, {
-      method: "GET",
-      cache: "no-store",
-    });
+    const response = await fetch(
+      `/api/follows?viewerId=${sessionUser.id}&type=following`,
+      {
+        method: "GET",
+        cache: "no-store",
+      },
+    );
 
     const payload = (await response.json()) as {
       message?: string;
@@ -309,7 +332,8 @@ export default function MapPage() {
 
     const followingUsers = payload.users ?? [];
     const userIds = followingUsers.map((user) => user.id);
-    const currentVisibility = useMapFollowVisibilityStore.getState().visibilityByUserId;
+    const currentVisibility =
+      useMapFollowVisibilityStore.getState().visibilityByUserId;
 
     setFollowingFilters(
       followingUsers.map((user) => ({
@@ -344,17 +368,20 @@ export default function MapPage() {
 
     const initializeMap = async () => {
       try {
-        const kakao = await loadKakaoMapScript(env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY);
+        const kakao = await loadKakaoMapScript(
+          env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY,
+        );
         const maps = kakao.maps;
 
         if (cancelled || !mapContainerRef.current || !maps) {
           return;
         }
 
-        const center = await resolveInitialCenter();
-
         const map = new maps.Map(mapContainerRef.current, {
-          center: new maps.LatLng(center.latitude, center.longitude),
+          center: new maps.LatLng(
+            DEFAULT_CENTER.latitude,
+            DEFAULT_CENTER.longitude,
+          ),
           level: 3,
         });
 
@@ -363,6 +390,14 @@ export default function MapPage() {
 
         mapRef.current = map;
 
+        void recenterToCurrentLocation(
+          map as { panTo: (latLng: unknown) => void },
+          maps as {
+            LatLng: new (latitude: number, longitude: number) => unknown;
+          },
+          () => cancelled,
+        );
+
         if (!cancelled) {
           setIsMapReady(true);
           setMapError("");
@@ -370,7 +405,11 @@ export default function MapPage() {
         }
       } catch (error) {
         if (!cancelled) {
-          setMapError(error instanceof Error ? error.message : "지도를 불러오지 못했습니다.");
+          setMapError(
+            error instanceof Error
+              ? error.message
+              : "지도를 불러오지 못했습니다.",
+          );
         }
       }
     };
@@ -383,7 +422,13 @@ export default function MapPage() {
       clearTemporaryMarker();
       mapRef.current = null;
     };
-  }, [clearMarkerRefs, clearTemporaryMarker, fetchFeed, fetchFollowingFilters, sessionUser]);
+  }, [
+    clearMarkerRefs,
+    clearTemporaryMarker,
+    fetchFeed,
+    fetchFollowingFilters,
+    sessionUser,
+  ]);
 
   const filteredFeedPlaces = useMemo(() => {
     if (!sessionUser) {
@@ -442,7 +487,9 @@ export default function MapPage() {
       return selectableResults;
     }
 
-    return selectableResults.filter((item) => toSearchType(item) === searchTypeFilter);
+    return selectableResults.filter(
+      (item) => toSearchType(item) === searchTypeFilter,
+    );
   }, [searchTypeFilter, selectableResults]);
 
   const handleSearch = async () => {
@@ -504,8 +551,12 @@ export default function MapPage() {
       image: createMarkerImage(maps, "#111827", "•"),
     });
 
-    const existing = feedPlaces.find((place) => place.externalPlaceKey === item.externalPlaceKey);
-    const mySave = existing?.owners.find((owner) => owner.userId === sessionUser?.id);
+    const existing = feedPlaces.find(
+      (place) => place.externalPlaceKey === item.externalPlaceKey,
+    );
+    const mySave = existing?.owners.find(
+      (owner) => owner.userId === sessionUser?.id,
+    );
 
     setSelectedPlace({
       externalPlaceKey: item.externalPlaceKey,
@@ -541,12 +592,16 @@ export default function MapPage() {
       return;
     }
 
-    const target = latestPlaces.find((place) => place.externalPlaceKey === externalPlaceKey);
+    const target = latestPlaces.find(
+      (place) => place.externalPlaceKey === externalPlaceKey,
+    );
     if (!target || !sessionUser) {
       return;
     }
 
-    const mySave = target.owners.find((owner) => owner.userId === sessionUser.id);
+    const mySave = target.owners.find(
+      (owner) => owner.userId === sessionUser.id,
+    );
 
     setSelectedPlace({
       externalPlaceKey: target.externalPlaceKey,
@@ -647,7 +702,9 @@ export default function MapPage() {
       await refreshFeedAndReselect(selectedPlace.externalPlaceKey);
       setEditMode(false);
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "저장 처리에 실패했습니다.");
+      setSearchError(
+        error instanceof Error ? error.message : "저장 처리에 실패했습니다.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -687,7 +744,9 @@ export default function MapPage() {
         myIsPublic: true,
         myRating: 3,
         myTags: [],
-        owners: selectedPlace.owners.filter((owner) => owner.userId !== sessionUser.id),
+        owners: selectedPlace.owners.filter(
+          (owner) => owner.userId !== sessionUser.id,
+        ),
       });
       setMemo("");
       setIsPublic(true);
@@ -695,7 +754,9 @@ export default function MapPage() {
       setEditMode(false);
       setUnsaveConfirmOpen(false);
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "저장 취소에 실패했습니다.");
+      setSearchError(
+        error instanceof Error ? error.message : "저장 취소에 실패했습니다.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -734,10 +795,38 @@ export default function MapPage() {
       await refreshFeedAndReselect(selectedPlace.externalPlaceKey);
     } catch (error) {
       setSearchError(
-        error instanceof Error ? error.message : "메모 반응 처리에 실패했습니다.",
+        error instanceof Error
+          ? error.message
+          : "메모 반응 처리에 실패했습니다.",
       );
     } finally {
       setReactingSaveId(null);
+    }
+  };
+
+  const moveToCurrentLocation = async () => {
+    const map = mapRef.current as { panTo: (latLng: unknown) => void } | null;
+    const maps = window.kakao?.maps;
+
+    if (!map || !maps) {
+      setSearchError("지도가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    setIsLocating(true);
+    try {
+      const center = await resolveInitialCenter();
+      if (!center) {
+        setSearchError(
+          "현재 위치를 가져오지 못했습니다. 위치 권한을 확인해 주세요.",
+        );
+        return;
+      }
+
+      map.panTo(new maps.LatLng(center.latitude, center.longitude));
+      setSearchError("");
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -769,13 +858,13 @@ export default function MapPage() {
               }}
             />
 
-            <div className="mt-2 flex items-center gap-2">
-              <div className="flex flex-1 gap-1 rounded-xl border border-[var(--nugget-border)] bg-[var(--nugget-surface)] p-1">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-1 gap-1">
                 <Button
                   type="button"
                   size="sm"
                   variant={searchTypeFilter === "all" ? "default" : "ghost"}
-                  className="h-8 flex-1 gap-1 px-2 text-[11px]"
+                  className="h-8 shrink-0 gap-1 px-5 text-xs"
                   onClick={() => setSearchTypeFilter("all")}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
@@ -784,8 +873,10 @@ export default function MapPage() {
                 <Button
                   type="button"
                   size="sm"
-                  variant={searchTypeFilter === "restaurant" ? "default" : "ghost"}
-                  className="h-8 flex-1 gap-1 px-2 text-[11px]"
+                  variant={
+                    searchTypeFilter === "restaurant" ? "default" : "ghost"
+                  }
+                  className="h-8 shrink-0 gap-1 px-5 text-xs"
                   onClick={() => setSearchTypeFilter("restaurant")}
                 >
                   <UtensilsCrossed className="h-3.5 w-3.5" />
@@ -795,7 +886,7 @@ export default function MapPage() {
                   type="button"
                   size="sm"
                   variant={searchTypeFilter === "cafe" ? "default" : "ghost"}
-                  className="h-8 flex-1 gap-1 px-2 text-[11px]"
+                  className="h-8 shrink-0 gap-1 px-5 text-xs"
                   onClick={() => setSearchTypeFilter("cafe")}
                 >
                   <Coffee className="h-3.5 w-3.5" />
@@ -816,7 +907,9 @@ export default function MapPage() {
 
             {isFollowPanelOpen ? (
               <section className="mt-2 overflow-x-auto rounded-[24px] border border-black/5 bg-white/90 p-2 shadow-[0_12px_30px_rgba(17,17,17,0.06)] backdrop-blur">
-                <div className="mb-2 text-xs font-medium text-[var(--nugget-muted)]">팔로우 사용자 표시 토글</div>
+                <div className="mb-2 text-xs font-medium text-[var(--nugget-muted)]">
+                  팔로우 사용자 표시 토글
+                </div>
                 {followingFilters.length ? (
                   <div className="flex gap-2">
                     {followingFilters.map((filter) => (
@@ -857,16 +950,17 @@ export default function MapPage() {
             ) : null}
 
             {filteredSearchResults.length ? (
-              <section className="mt-2 max-h-[260px] overflow-auto rounded-[24px] border border-black/5 bg-white/90 p-2 shadow-[0_12px_30px_rgba(17,17,17,0.06)] backdrop-blur">
+              <section className="mt-2 max-h-[360px] overflow-auto rounded-[24px] border border-black/5 bg-white/90 p-2 shadow-[0_12px_30px_rgba(17,17,17,0.06)] backdrop-blur">
                 <ul className="space-y-2">
                   {filteredSearchResults.map((item) => {
                     const hasCoordinates =
-                      typeof item.latitude === "number" && typeof item.longitude === "number";
+                      typeof item.latitude === "number" &&
+                      typeof item.longitude === "number";
 
                     return (
                       <li
                         key={item.externalPlaceKey}
-                        className="rounded-[16px] border border-black/5 bg-white/95 p-2"
+                        className="border-b border-black/5 bg-white/95 p-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
@@ -877,7 +971,10 @@ export default function MapPage() {
                               {item.roadAddress || item.address}
                             </p>
                           </div>
-                          {feedPlaces.some((place) => place.externalPlaceKey === item.externalPlaceKey) ? (
+                          {feedPlaces.some(
+                            (place) =>
+                              place.externalPlaceKey === item.externalPlaceKey,
+                          ) ? (
                             <Badge variant="secondary">저장됨</Badge>
                           ) : null}
                         </div>
@@ -909,9 +1006,30 @@ export default function MapPage() {
 
         {mapError ? (
           <div className="absolute inset-x-3 top-20 z-20">
-            <EmptyState title="지도를 불러오지 못했습니다" description={mapError} />
+            <EmptyState
+              title="지도를 불러오지 못했습니다"
+              description={mapError}
+            />
           </div>
         ) : null}
+
+        <div className="pointer-events-none absolute bottom-[calc(var(--nugget-bottom-nav-offset)+12px)] right-3 z-20">
+          <Button
+            type="button"
+            size="icon"
+            variant="secondary"
+            className="pointer-events-auto h-11 w-11 rounded-full border border-black/8 bg-white/95 shadow-[0_10px_24px_rgba(17,17,17,0.14)]"
+            onClick={() => {
+              void moveToCurrentLocation();
+            }}
+            disabled={!isMapReady || isLocating}
+            aria-label="내 위치로 이동"
+          >
+            <LocateFixed
+              className={isLocating ? "h-4 w-4 animate-pulse" : "h-4 w-4"}
+            />
+          </Button>
+        </div>
 
         <PlaceBottomSheet
           open={isSheetOpen}
@@ -956,26 +1074,42 @@ export default function MapPage() {
 }
 
 function resolveInitialCenter() {
-  return new Promise<{ latitude: number; longitude: number }>((resolve) => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      resolve(DEFAULT_CENTER);
-      return;
-    }
+  return new Promise<{ latitude: number; longitude: number } | null>(
+    (resolve) => {
+      if (typeof window === "undefined" || !navigator.geolocation) {
+        resolve(null);
+        return;
+      }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      () => {
-        resolve(DEFAULT_CENTER);
-      },
-      {
-        timeout: 4000,
-        enableHighAccuracy: true,
-      },
-    );
-  });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+        },
+        () => {
+          resolve(null);
+        },
+        {
+          timeout: 10000,
+          enableHighAccuracy: false,
+          maximumAge: 60000,
+        },
+      );
+    },
+  );
+}
+
+async function recenterToCurrentLocation(
+  map: { panTo: (latLng: unknown) => void },
+  maps: { LatLng: new (latitude: number, longitude: number) => unknown },
+  isCancelled: () => boolean,
+) {
+  const center = await resolveInitialCenter();
+  if (!center || isCancelled()) {
+    return;
+  }
+
+  map.panTo(new maps.LatLng(center.latitude, center.longitude));
 }

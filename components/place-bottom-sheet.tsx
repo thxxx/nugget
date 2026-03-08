@@ -1,11 +1,19 @@
 "use client";
 
-import { ArrowLeft, Lock, MapPin, Pencil, Star, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  MapPin,
+  Pencil,
+  Star,
+  ThumbsDown,
+  ThumbsUp,
+  X,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { VisitStatus } from "@/lib/types/domain";
 import { cn } from "@/lib/utils";
 import type { SelectedPlace } from "@/store/useMapStore";
 
@@ -24,14 +32,24 @@ type PlaceBottomSheetProps = {
   onRatingChange: (value: 1 | 2 | 3) => void;
   onStartEdit: () => void;
   onCancelEdit: () => void;
-  onOwnerReaction: (saveId: number, reaction: "like" | "dislike" | null) => void;
+  onOwnerReaction: (
+    saveId: number,
+    reaction: "like" | "dislike" | null,
+  ) => void;
   onSave: () => void;
   onRemove: () => void;
   onClose: () => void;
 };
 
-function formatOwnerVisitStatus(visitStatus: VisitStatus) {
-  return visitStatus === "visited" ? "방문 완료" : "방문 예정";
+function formatSavedDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
 }
 
 export function PlaceBottomSheet({
@@ -119,16 +137,18 @@ export function PlaceBottomSheet({
                         key={owner.saveId}
                         className="rounded-[14px] bg-[var(--nugget-surface)] px-2 py-1.5 text-xs"
                       >
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-[var(--nugget-text)]">
-                            {owner.nickname}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className="font-medium text-[var(--nugget-text)]">
+                              {owner.nickname}
+                            </p>
+                            <Badge variant="secondary">
+                              {"★".repeat(owner.rating)}
+                            </Badge>
+                          </div>
+                          <p className="shrink-0 text-[11px] text-[var(--nugget-muted)]">
+                            {formatSavedDate(owner.createdAt)}
                           </p>
-                          <Badge variant="outline">
-                            {formatOwnerVisitStatus(owner.visitStatus)}
-                          </Badge>
-                          <Badge variant="secondary">
-                            {"★".repeat(owner.rating)}
-                          </Badge>
                         </div>
                         {owner.tags.length ? (
                           <div className="mt-1 flex flex-wrap gap-1">
@@ -153,7 +173,12 @@ export function PlaceBottomSheet({
                               variant={likeSelected ? "default" : "secondary"}
                               className="h-7 gap-1 px-2 text-[11px]"
                               disabled={reactingSaveId === owner.saveId}
-                              onClick={() => onOwnerReaction(owner.saveId, likeSelected ? null : "like")}
+                              onClick={() =>
+                                onOwnerReaction(
+                                  owner.saveId,
+                                  likeSelected ? null : "like",
+                                )
+                              }
                             >
                               <ThumbsUp className="h-3.5 w-3.5" />
                               {owner.likeCount}
@@ -161,11 +186,16 @@ export function PlaceBottomSheet({
                             <Button
                               type="button"
                               size="sm"
-                              variant={dislikeSelected ? "default" : "secondary"}
+                              variant={
+                                dislikeSelected ? "default" : "secondary"
+                              }
                               className="h-7 gap-1 px-2 text-[11px]"
                               disabled={reactingSaveId === owner.saveId}
                               onClick={() =>
-                                onOwnerReaction(owner.saveId, dislikeSelected ? null : "dislike")
+                                onOwnerReaction(
+                                  owner.saveId,
+                                  dislikeSelected ? null : "dislike",
+                                )
                               }
                             >
                               <ThumbsDown className="h-3.5 w-3.5" />

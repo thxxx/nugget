@@ -56,7 +56,7 @@ const NAV_ITEMS: BottomNavItem[] = [
   {
     key: "saved",
     href: "/saves",
-    label: "저장",
+    label: "프로필",
     icon: (
       <svg
         viewBox="0 0 24 24"
